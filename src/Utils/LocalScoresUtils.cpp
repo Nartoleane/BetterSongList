@@ -1,4 +1,5 @@
 #include "Utils/LocalScoresUtils.hpp"
+#include "Utils/PlayerStats.hpp"
 
 #include "GlobalNamespace/PlayerDataModel.hpp"
 #include "GlobalNamespace/PlayerData.hpp"
@@ -105,4 +106,6 @@ MAKE_AUTO_HOOK_MATCH(PlayerLevelStatsData_UpdateScoreData, &GlobalNamespace::Pla
         BetterSongList::LocalScoresUtils::playedMaps.insert(static_cast<std::string>(self->_levelID));
     }
     PlayerLevelStatsData_UpdateScoreData(self, score, maxCombo, fullCombo, rank);
+    // The stored scores changed, so the accuracy sorter has to read them again
+    BetterSongList::PlayerStats::MarkScoresDirty();
 };

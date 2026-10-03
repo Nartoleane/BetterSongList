@@ -5,6 +5,12 @@
 #include "Sorters/Models/BasicSongDetailsSorterWithLegend.hpp"
 #include "Sorters/Models/FolderDateSorter.hpp"
 #include "Sorters/Models/FunctionSorter.hpp"
+#include "Sorters/Models/PlayerStatsSorter.hpp"
+#include "Utils/PlayerStats.hpp"
+
+#include <cmath>
+#include <ctime>
+#include <optional>
 
 
 namespace BetterSongList {
@@ -165,6 +171,66 @@ namespace BetterSongList {
         }
     );
 
+    static std::string LastPlayedLegend(std::optional<double> value) {
+        if (!value.has_value()) return "N/A";
+        // Played before the dates were tracked
+        if (*value <= 0) return "?";
+
+        auto played = static_cast<time_t>(*value);
+        struct tm playedTm = *localtime(&played);
+        time_t nowTime = time(nullptr);
+        struct tm nowTm = *localtime(&nowTime);
+
+        // Whole days between the two local dates
+        struct tm playedDay = playedTm;
+        playedDay.tm_hour = 12; playedDay.tm_min = 0; playedDay.tm_sec = 0;
+        struct tm today = nowTm;
+        today.tm_hour = 12; today.tm_min = 0; today.tm_sec = 0;
+        int days = (int) std::lround(std::difftime(mktime(&today), mktime(&playedDay)) / 86400.0);
+
+        char buffer[16];
+        if (days <= 0) return "Today";
+        if (days == 1) return "Yest.";
+        if (days < 7) {
+            strftime(buffer, sizeof(buffer), "%a", &playedTm);
+        } else if (days < 90) {
+            strftime(buffer, sizeof(buffer), "%b %d", &playedTm);
+        } else {
+            strftime(buffer, sizeof(buffer), "%b'%y", &playedTm);
+        }
+        return buffer;
+    }
+
+    // Most recently played first. Maps played before the dates were tracked come after the dated ones, unplayed maps last.
+    static PlayerStatsSorter lastPlayed(
+        [](GlobalNamespace::BeatmapLevel* level) -> std::optional<double> {
+            if (!level) return std::nullopt;
+            StringW id = level->___levelID;
+            if (!id) return std::nullopt;
+            auto played = PlayerStats::GetLastPlayed(static_cast<std::string>(id));
+            if (!played.has_value()) return std::nullopt;
+            return static_cast<double>(*played);
+        },
+        [](std::optional<double> value) { return LastPlayedLegend(value); },
+        false,
+        false
+    );
+
+    // Best accuracy first, based on the highest valid local score of the map. Unplayed maps last.
+    static PlayerStatsSorter accuracy(
+        [](GlobalNamespace::BeatmapLevel* level) -> std::optional<double> {
+            auto acc = PlayerStats::GetBestAccuracy(level);
+            if (!acc.has_value()) return std::nullopt;
+            return static_cast<double>(*acc);
+        },
+        [](std::optional<double> value) -> std::string {
+            if (!value.has_value()) return "N/A";
+            return fmt::format("{}%", (int) std::floor(*value * 100.0));
+        },
+        true,
+        true
+    );
+
     const std::map<std::string, ISorter*>& SortMethods::get_methods() {
         return methods;
     }
@@ -199,6 +265,8 @@ namespace BetterSongList {
         {"Song Length", &songLength},
         {"BPM", &bpm},
         {"BeatSaver Date", &beatSaverDate},
+        {"Last Played", &lastPlayed},
+        {"Accuracy", &accuracy},
         {"Default", nullptr}
     };
 }
