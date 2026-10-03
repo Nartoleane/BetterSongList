@@ -7,7 +7,7 @@ env:
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev , 1.40.8]
   pull_request:
     branches: [ main ]
 
