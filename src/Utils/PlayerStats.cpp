@@ -72,14 +72,15 @@ namespace BetterSongList::PlayerStats {
     static std::atomic<int> loadAttempts = 0;
 
     int MaxScoreForNotes(uint32_t notes) {
-        // Score multiplier is 1x for the first note, 2x for notes 2-5, 4x for notes 6-13 and 8x after that.
-        // Every note is worth at most 115 points before the multiplier.
-        int64_t total = 0;
-        for (uint32_t i = 1; i <= std::min<uint32_t>(notes, 13); i++) {
-            total += i == 1 ? 1 : (i <= 5 ? 2 : 4);
+        if (notes <= 13) {
+            int64_t total = 0;
+            for (uint32_t i = 1; i <= notes; i++) {
+                total += i == 1 ? 1 : (i <= 5 ? 2 : 4);
+            }
+            return static_cast<int>(115 * total);
+        } else {
+            return static_cast<int>((notes - 13) * 1127.2 + 5705);
         }
-        if (notes > 13) total += 8LL * (notes - 13);
-        return static_cast<int>(115 * total);
     }
 
     static std::filesystem::path GetPlayTimesPath() {
